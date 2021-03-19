@@ -16,11 +16,14 @@ package com.google.businessmessages.samples.servlets;
 // [START callback for receiving consumer messages]
 
 // [START import_libraries]
-
+import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.services.businessmessages.v1.Businessmessages;
 import com.google.api.services.businessmessages.v1.model.BusinessMessagesEvent;
 import com.google.api.services.businessmessages.v1.model.BusinessMessagesMessage;
@@ -128,7 +131,7 @@ public class AgentCallback extends HttpServlet {
   /**
    * Sends the message received from the user back to the user.
    *
-   * @param message        The message text received from the user.
+   * @param message The message text received from the user.
    * @param conversationId The unique id for this user and agent.
    */
   private void echoMessage(String message, String conversationId) {
@@ -149,7 +152,7 @@ public class AgentCallback extends HttpServlet {
    * Posts a message to the Business Messages API, first sending a typing indicator event and
    * sending a stop typing event after the message has been sent.
    *
-   * @param message        The message object to send the user.
+   * @param message The message object to send the user.
    * @param conversationId The conversation ID that uniquely maps to the user and agent.
    */
   private void sendResponse(BusinessMessagesMessage message, String conversationId) {
@@ -174,7 +177,15 @@ public class AgentCallback extends HttpServlet {
           = builder.build().conversations().messages()
           .create("conversations/" + conversationId, message);
 
-      messageRequest.execute();
+      // Setup retries with exponential backoff
+      HttpRequest httpRequest =
+          ((AbstractGoogleClientRequest) messageRequest).buildHttpRequest();
+
+      httpRequest.setUnsuccessfulResponseHandler(new
+          HttpBackOffUnsuccessfulResponseHandler(
+          new ExponentialBackOff()));
+
+      httpRequest.execute();
 
       // Stop typing indicator
       event =

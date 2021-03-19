@@ -16,11 +16,14 @@ package com.google.businessmessages.samples.servlets;
 // [START callback for receiving consumer messages]
 
 // [START import_libraries]
-
+import com.google.api.client.googleapis.services.AbstractGoogleClientRequest;
+import com.google.api.client.http.HttpBackOffUnsuccessfulResponseHandler;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.googleapis.auth.oauth2.GoogleCredential;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.jackson2.JacksonFactory;
+import com.google.api.client.util.ExponentialBackOff;
 import com.google.api.services.businessmessages.v1.Businessmessages;
 import com.google.api.services.businessmessages.v1.model.BusinessMessagesCardContent;
 import com.google.api.services.businessmessages.v1.model.BusinessMessagesCarouselCard;
@@ -363,7 +366,15 @@ public class AgentCallback extends HttpServlet {
           = builder.build().conversations().messages()
           .create("conversations/" + conversationId, message);
 
-      messageRequest.execute();
+      // Setup retries with exponential backoff
+      HttpRequest httpRequest =
+          ((AbstractGoogleClientRequest) messageRequest).buildHttpRequest();
+
+      httpRequest.setUnsuccessfulResponseHandler(new
+          HttpBackOffUnsuccessfulResponseHandler(
+          new ExponentialBackOff()));
+
+      httpRequest.execute();
 
       // Stop typing indicator
       event =
